@@ -1,208 +1,252 @@
-# Cerberus Watchdog: On-Chain AI Threat Detection
+# HORUS: FULLY DECENTRALIZED BLOCKCHAIN + AI ANOMALY DETECTION SYSTEM
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![U2U Network](https://img.shields.io/badge/Network-U2U%20Testnet-blue)](https://u2u.xyz)
-[![Built for VietBUILD](https://img.shields.io/badge/Built%20for-VietBUILD%20Hackathon-green)](https://hackathon.u2u.xyz)
-[![Built for BI-OJK Hackathon](https://img.shields.io/badge/Built%20for-BI--OJK%20Hackathon-green)](https://GANTI_DENGAN_URL_HACKATHON)
+[![Decentralized](https://img.shields.io/badge/System-Fully%20Decentralized-blue)](#)
+[![AI Engine](https://img.shields.io/badge/AI-Anomaly%20Detection-green)](#)
+[![Blockchain](https://img.shields.io/badge/Blockchain-Immutable%20Audit-red)](#)
 
-**Cerberus Watchdog** adalah sistem AI otonom yang memantau U2U Network secara real-time untuk mendeteksi dan menandai transaksi berbahaya sebelum dieksekusi. Ancaman yang terdeteksi dicatat secara on-chain untuk menciptakan lapisan reputasi yang terdesentralisasi dan abadi.
+HORUS adalah sistem deteksi anomali transaksi berbasis **blockchain** dan **AI** yang sepenuhnya **tanpa pusat**. Setiap transaksi dianalisis sebelum atau sesudah masuk ke jaringan, dan hasil deteksi dicatat secara on-chain untuk memastikan integritas, auditabilitas, dan transparansi yang tidak dapat dimanipulasi.
 
-## Fitur Utama
+---
 
-- **AI-Powered Detection**: Deteksi ancaman menggunakan algoritma machine learning
-- **Real-time Monitoring**: Monitoring mempool U2U Network secara real-time
-- **On-chain Recording**: Pencatatan ancaman permanent di blockchain
-- **Advanced Analytics**: Dashboard dan analytics untuk threat intelligence
-- **Multi-threat Categories**: Deteksi 10+ kategori ancaman berbeda
+## FITUR UTAMA
 
-## Arsitektur
+* **AI-BASED ANOMALY DETECTION** – Model machine learning untuk deteksi transaksi tidak wajar.
+* **FULLY DECENTRALIZED** – Tidak ada server pusat, komunikasi menggunakan P2P.
+* **ON-CHAIN RECORDING** – Semua flag anomali dicatat di smart contract.
+* **IMMUTABLE AUDIT LOGS** – Catatan permanen untuk pemerintahan, publik, dan auditor.
+* **IPFS ENCRYPTED STORAGE** – Payload besar disimpan terdistribusi.
+* **GOVERNANCE & VALIDATION** – Mekanisme kontrol berbasis smart contract.
+
+---
+
+## ARSITEKTUR SISTEM
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   U2U Network   │    │  AI Sentinel    │    │ Smart Contract  │
-│   (Mempool)     │───▶│   (Analysis)    │───▶│   (Recording)   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                │
-                                ▼
-                       ┌─────────────────┐
-                       │   Frontend      │
-                       │  (Dashboard)    │
-                       └─────────────────┘
+┌────────────────────────────┐
+│        CLIENT / UI          │
+│ (Dashboard / Submission)    │
+└──────────────┬─────────────┘
+               │
+               ▼
+     ┌──────────────────────────────┐
+     │        P2P NODES (libp2p)     │
+     │  Discovery / Validate / Sync  │
+     └──────────────┬───────────────┘
+                    │
+      ┌─────────────┴──────────────┐
+      │                            │
+      ▼                            ▼
+┌───────────────────┐     ┌────────────────────────┐
+│ SMART CONTRACTS    │     │ IPFS ENCRYPTED STORAGE │
+│ (EVM Compatible)   │     │     (CID Based)        │
+└───────────┬────────┘     └──────────────┬────────┘
+            │                              │
+            ▼                              ▼
+     ┌────────────────────────────────────────────┐
+     │    AI ANOMALY DETECTION ENGINE (FastAPI)   │
+     │   Autoencoder / Isolation Forest / Hybrid   │
+     └────────────────────────────────────────────┘
 ```
 
-## Quick Start
+---
 
-### Prerequisites
+## STRUKTUR DIREKTORI
 
-- Node.js v18+
-- Python 3.9+
-- MetaMask dengan U2U Testnet
-- U2U testnet tokens
+```
+horus-project/
+│
+├── CONTRACTS/                  # Smart Contract Solidity
+│   ├── SCRIPTS/
+│   ├── TEST/
+│   └── HARDHAT.CONFIG.JS
+│
+├── NODE/                       # Node P2P libp2p
+│   ├── SRC/
+│   ├── CONFIG/
+│   └── DOCKERFILE
+│
+├── INFERENCE/                  # AI Model + API FastAPI
+│   ├── API/
+│   ├── MODEL/
+│   ├── NOTEBOOKS/
+│   └── REQUIREMENTS.TXT
+│
+├── WEB-UI/                     # Dashboard / UI
+├── SCRIPTS/                    # Deployment tools
+└── README.MD
+```
 
-### Installation
+---
 
-1. **Clone repository**
+## QUICK START
+
+### PREREQUISITES
+
+* Node.js v18+
+* Python 3.10+
+* Docker / Docker Compose
+* Wallet blockchain sesuai jaringan
+
+### 1. CLONE REPOSITORY
+
 ```bash
-git clone https://github.com/yourusername/cerberus-watchdog.git
-cd cerberus-watchdog
+git clone https://github.com/laudzakusuma/horus-project.git
+cd horus-project
 ```
 
-2. **Install dependencies**
+### 2. JALANKAN IPFS
+
 ```bash
-# Install workspace dependencies
-pnpm install
-
-# Setup AI Sentinel
-cd services/ai-sentinel
-python -m venv venv
-source venv/bin/activate  # Windows: .\venv\Scripts\Activate.ps1
-pip install flask
-
-# Setup Monitor
-cd ../mempool-monitor
-npm install
-
-# Setup Frontend
-cd ../../apps/frontend
-npm install
+docker run -d --name ipfs_host \
+ -v ipfs_data:/data/ipfs \
+ -p 5001:5001 -p 8080:8080 \
+ ipfs/go-ipfs:latest
 ```
 
-3. **Deploy Smart Contract**
+### 3. JALANKAN BLOCKCHAIN LOCAL (HARDHAT)
+
 ```bash
 cd contracts
-npx hardhat run scripts/deploy.ts --network u2u_testnet
+npm install
+npx hardhat node
+npx hardhat run scripts/deploy.js --network localhost
 ```
 
-4. **Configure Environment**
+### 4. JALANKAN P2P NODE
+
 ```bash
-# Copy .env.example to .env dan isi dengan values Anda
-cp .env.example .env
+cd node
+npm install
+npm run build
+npm run start:dev
 ```
 
-5. **Start Services**
+### 5. JALANKAN AI INFERENCE ENGINE
+
 ```bash
-# Terminal 1: AI Sentinel
-cd services/ai-sentinel
-python app.py
-
-# Terminal 2: Monitor
-cd services/mempool-monitor
-node monitor.js
-
-# Terminal 3: Frontend
-cd apps/frontend
-npm run dev
+cd inference
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn api.main:app --host 0.0.0.0 --port 8000
 ```
 
-## Configuration
+---
 
-### Environment Variables
+## ENVIRONMENT VARIABLES
 
-```env
-# U2U Network
-U2U_RPC_HTTP=https://rpc-nebulas-testnet.uniultra.xyz
-U2U_RPC_WSS=wss://rpc-nebulas-testnet.uniultra.xyz
+```
+# Blockchain
+RPC_URL=http://localhost:8545
+CHAIN_ID=1337
 
 # Smart Contract
-CONTRACT_ADDRESS=your_deployed_contract_address
+CONTRACT_ADDRESS=your_contract_address
 
-# Monitor
-MONITOR_PRIVATE_KEY=your_wallet_private_key
-AI_API_URL=http://127.0.0.1:5001/predict
+# AI Engine
+AI_API_URL=http://localhost:8000/score
 
-# Frontend
-NEXT_PUBLIC_CONTRACT_ADDRESS=your_deployed_contract_address
-NEXT_PUBLIC_U2U_RPC_HTTP=https://rpc-nebulas-testnet.uniultra.xyz
+# IPFS
+IPFS_API=http://localhost:5001
 ```
 
-## Tech Stack
+---
 
-### Smart Contracts
-- **Solidity 0.8.28**
-- **Hardhat** untuk development & deployment
-- **OpenZeppelin** untuk security standards
+## TEKNOLOGI UTAMA
 
-### AI & Backend
-- **Python Flask** untuk AI API
-- **Rule-based ML** untuk threat detection
-- **Node.js + Ethers.js** untuk blockchain monitoring
+### SMART CONTRACTS
 
-### Frontend
-- **Next.js (React)** untuk web interface
-- **Styled-Components** untuk modern UI
-- **Real-time WebSocket** untuk live updates
+* Solidity
+* Hardhat
+* EVM Compatible
+* OpenZeppelin Libraries
 
-## Threat Categories
+### AI & BACKEND
 
-Cerberus dapat mendeteksi berbagai jenis ancaman:
+* Python FastAPI
+* PyTorch / Scikit-learn
+* Model: Autoencoder / Isolation Forest
 
-1. **RUG_PULL** - Penarikan likuiditas mendadak
-2. **FLASH_LOAN_ATTACK** - Serangan menggunakan flash loan
-3. **FRONT_RUNNING** - MEV dan sandwich attacks
-4. **SMART_CONTRACT_EXPLOIT** - Eksploitasi vulnerability kontrak
-5. **PHISHING_CONTRACT** - Kontrak phishing palsu
-6. **PRICE_MANIPULATION** - Manipulasi harga token
-7. **HONEY_POT** - Trap contracts
-8. **GOVERNANCE_ATTACK** - Serangan pada governance
-9. **MEV_ABUSE** - Penyalahgunaan MEV
+### P2P LAYER
 
-## Demo
+* libp2p (peer discovery, routing, messaging)
 
-### Live Detection Example
+### STORAGE
+
+* IPFS (CID-based encrypted files)
+
+### FRONTEND
+
+* Next.js / React
+* Tailwind / Styled Components
+
+---
+
+## THREAT / ANOMALY CATEGORY (RECOMMENDED)
+
+1. SUSPICIOUS_AMOUNT
+2. UNUSUAL_FREQUENCY
+3. BLACKLISTED_ENTITY
+4. GEOLOCATION_MISMATCH
+5. MULTI-ACCOUNT_PATTERN
+6. STRUCTURED_TRANSACTIONS
+7. HIGH_RISK_SCORE
+8. MODEL_OUTLIER_DETECTION
+
+---
+
+## CONTOH DETEKSI
 
 ```
-Analyzing: 0xbd9623e0... | Value: 1.0000 U2U
-Danger: 100.0 | Category: FRONT_RUNNING | Malicious: true
-THREAT DETECTED! Reporting to blockchain...
-Report sent! Tx: 0x0fc59d18...
-Confirmed on block: 59465798
+Analyzing Transaction: 0xaf12...39a1
+Amount: 12,300
+Risk Score: 0.89
+Anomaly: TRUE
+Flag submitted to blockchain...
+Transaction Hash: 0x91bcf...
+Block Confirmed.
 ```
 
-### Smart Contract Events
+---
+
+## EVENT SMART CONTRACT
 
 ```solidity
-event ThreatReported(
-    uint256 indexed alertId,
+event AnomalyDetected(
+    uint256 indexed id,
     bytes32 indexed txHash,
-    address indexed flaggedAddress,
-    ThreatLevel level,
-    ThreatCategory category,
-    uint256 confidenceScore,
-    address reporter,
+    address indexed account,
+    uint256 score,
+    bool isAnomaly,
     uint256 timestamp
 );
 ```
 
-## Deployed Contracts
+---
 
-- **U2U Testnet**: `0xC65f3ec1e0a6853d2e6267CB918E683BA7E4f36c`
-- **Explorer**: [View on U2U Explorer](https://testnet.u2uscan.xyz/address/0xC65f3ec1e0a6853d2e6267CB918E683BA7E4f36c)
+## KONTRAK DEPLOY (CONTOH)
 
-## Contributing
-
-1. Fork repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
-
-## License
-
-Distributed under the MIT License. See `LICENSE` for more information.
-
-## Hackathon
-
-Built for **VietBUILD Hackathon** - demonstrating innovative blockchain security solutions on U2U Network.
-
-## Contact
-
-- **GitHub**: [@laudzakusuma](https://github.com/laudzakusuma)
-- **Email**: laudzaxie@gmail.com
-- **Demo**: https://cerberus-watchdog.vercel.app
+* Localhost: `0x0000000000000000000000000000000000000000`
+* Explorer: gunakan Hardhat local explorer atau jaringan tujuan
 
 ---
 
-**⚠️ Disclaimer**: This is a proof-of-concept built for hackathon purposes. Use in production environments requires additional security audits and testing.
-=======
-# CERBERUS
->>>>>>> 511bbbf98f4bd352074e35e017d23afc642eba37
+## CONTRIBUTING
+
+1. Fork repository
+2. Buat branch baru (`feature/new-module`)
+3. Commit perubahan (`git commit -m "Add new module"`)
+4. Push dan ajukan Pull Request
+
+---
+
+## LICENSE
+
+MIT (lihat file LICENSE)
+
+---
+
+## DISCLAIMER
+
+HORUS adalah proof-of-concept. Penggunaan untuk produksi memerlukan audit tambahan, pengujian keamanan, dan verifikasi formal.
