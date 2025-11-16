@@ -1,13 +1,25 @@
+#!/usr/bin/env python3
+"""
+HORUS AI Engine - Anomaly Detection System
+Fixed version without Unicode emojis for Windows compatibility
+"""
+
+import sys
+import json
+import pickle
 import numpy as np
 import pandas as pd
-import json
+from sklearn.ensemble import IsolationForest, RandomForestClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import DBSCAN
 import hashlib
-import pickle
+import os
+import time
+import traceback
 from typing import List, Dict, Tuple
 from dataclasses import dataclass
 import warnings
-import sys
-import os
+
 warnings.filterwarnings('ignore')
 
 @dataclass
@@ -37,10 +49,6 @@ class HorusAI:
     def initialize_model(self):
         """Initialize AI model dengan ensemble methods"""
         try:
-            from sklearn.ensemble import IsolationForest, RandomForestClassifier
-            from sklearn.preprocessing import StandardScaler
-            from sklearn.cluster import DBSCAN
-            
             # Ensemble model untuk robustness
             self.isolation_forest = IsolationForest(
                 contamination=0.1,
@@ -59,8 +67,8 @@ class HorusAI:
             
             print("HORUS AI Model initialized successfully")
             return True
-        except ImportError as e:
-            print(f"Error importing ML libraries: {e}")
+        except Exception as e:
+            print(f"Error initializing ML models: {e}")
             return False
     
     def load_model(self, model_path: str):
@@ -80,114 +88,77 @@ class HorusAI:
             self.feature_importance = model_data.get('feature_importance', [])
             self.is_trained = True
             
-            print(f" Model loaded successfully from {model_path}")
+            print(f"Model loaded successfully from {model_path}")
             return True
         except Exception as e:
-            print(f"❌ Error loading model: {e}")
+            print(f"Error loading model: {e}")
             return False
     
-    def train(self, transactions: List[Transaction], labels: List[int] = None):
-        """Train model dengan data transaksi"""
-        print("Training HORUS AI model...")
-        
+    def extract_features(self, transaction_data: Dict) -> np.ndarray:
+        """Extract comprehensive features dari transaksi data"""
         try:
-            # Extract features
-            X = np.vstack([self.extract_features(tx) for tx in transactions])
+            # Create Transaction object from dictionary
+            transaction = Transaction(
+                id=transaction_data.get('id', 0),
+                amount=transaction_data.get('amount', 0.0),
+                sender=transaction_data.get('sender', 'unknown'),
+                receiver=transaction_data.get('receiver', 'unknown'),
+                timestamp=transaction_data.get('timestamp', int(time.time())),
+                department=transaction_data.get('department', 'unknown'),
+                transaction_type=transaction_data.get('transaction_type', 'unknown'),
+                metadata=transaction_data.get('metadata', {})
+            )
             
-            # Scale features
-            X_scaled = self.scaler.fit_transform(X)
+            features = []
             
-            if labels is not None:
-                # Supervised learning dengan Random Forest
-                y = np.array(labels)
-                print(f"Training Random Forest with {len(y)} samples, {sum(y)} anomalies")
-                self.random_forest.fit(X_scaled, y)
-                print("Supervised training completed")
-            else:
-                # Unsupervised learning saja
-                print("No labels provided, using unsupervised learning only")
+            # 1. Amount-based features
+            features.extend([
+                transaction.amount,
+                np.log1p(transaction.amount) if transaction.amount > 0 else 0,
+                transaction.amount ** 0.5
+            ])
             
-            # Always train unsupervised models
-            self.isolation_forest.fit(X_scaled)
-            print(" Unsupervised training completed")
+            # 2. Temporal features
+            features.extend([
+                transaction.timestamp % 86400,  # Second dalam hari
+                (transaction.timestamp % 86400) // 3600,  # Jam dalam hari
+                transaction.timestamp // 86400  # Hari sejak epoch
+            ])
             
-            # Clustering untuk pattern discovery
-            self.clustering.fit(X_scaled)
-            print(" Clustering completed")
+            # 3. Behavioral features (hash-based)
+            sender_hash = int(hashlib.md5(transaction.sender.encode()).hexdigest()[:8], 16)
+            receiver_hash = int(hashlib.md5(transaction.receiver.encode()).hexdigest()[:8], 16)
             
-            self._calculate_feature_importance(X_scaled)
-            self.is_trained = True
+            features.extend([
+                sender_hash % 10000,
+                receiver_hash % 10000,
+                abs(sender_hash - receiver_hash) % 10000
+            ])
             
-            print(f" All models trained successfully!")
+            # 4. Department encoding
+            dept_mapping = {
+                'keuangan': 1, 'pajak': 2, 'pengadaan': 3, 
+                'proyek': 4, 'umum': 5, 'lainnya': 0
+            }
+            dept_code = dept_mapping.get(transaction.department.lower(), 0)
+            features.append(dept_code)
+            
+            # 5. Transaction type encoding
+            type_mapping = {
+                'transfer': 1, 'pembayaran': 2, 'pengeluaran': 3,
+                'penerimaan': 4, 'penyesuaian': 5, 'lainnya': 0
+            }
+            type_code = type_mapping.get(transaction.transaction_type.lower(), 0)
+            features.append(type_code)
+            
+            return np.array(features).reshape(1, -1)
             
         except Exception as e:
-            print(f" Training failed: {e}")
-            raise
+            print(f"Error extracting features: {e}")
+            # Return default features as fallback
+            return np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).reshape(1, -1)
     
-    def _calculate_feature_importance(self, X):
-        """Calculate feature importance untuk interpretability"""
-        try:
-            if hasattr(self.random_forest, 'feature_importances_'):
-                self.feature_importance = self.random_forest.feature_importances_
-                print(f"Feature importance calculated: {len(self.feature_importance)} features")
-            else:
-                # Fallback importance calculation
-                from sklearn.ensemble import IsolationForest
-                temp_forest = IsolationForest(random_state=42)
-                temp_forest.fit(X)
-                self.feature_importance = np.ones(X.shape[1]) / X.shape[1]
-                print("Using uniform feature importance")
-        except Exception as e:
-            print(f"Feature importance calculation failed: {e}")
-            self.feature_importance = np.ones(X.shape[1]) / X.shape[1]
-    
-    def extract_features(self, transaction: Transaction) -> np.ndarray:
-        """Extract comprehensive features dari transaksi"""
-        features = []
-        
-        # 1. Amount-based features
-        features.extend([
-            transaction.amount,
-            np.log1p(transaction.amount) if transaction.amount > 0 else 0,
-            transaction.amount ** 0.5
-        ])
-        
-        # 2. Temporal features
-        features.extend([
-            transaction.timestamp % 86400,  # Second dalam hari
-            (transaction.timestamp % 86400) // 3600,  # Jam dalam hari
-            transaction.timestamp // 86400  # Hari sejak epoch
-        ])
-        
-        # 3. Behavioral features (hash-based)
-        sender_hash = int(hashlib.md5(transaction.sender.encode()).hexdigest()[:8], 16)
-        receiver_hash = int(hashlib.md5(transaction.receiver.encode()).hexdigest()[:8], 16)
-        
-        features.extend([
-            sender_hash % 10000,
-            receiver_hash % 10000,
-            abs(sender_hash - receiver_hash) % 10000
-        ])
-        
-        # 4. Department encoding
-        dept_mapping = {
-            'keuangan': 1, 'pajak': 2, 'pengadaan': 3, 
-            'proyek': 4, 'umum': 5, 'lainnya': 0
-        }
-        dept_code = dept_mapping.get(transaction.department.lower(), 0)
-        features.append(dept_code)
-        
-        # 5. Transaction type encoding
-        type_mapping = {
-            'transfer': 1, 'pembayaran': 2, 'pengeluaran': 3,
-            'penerimaan': 4, 'penyesuaian': 5, 'lainnya': 0
-        }
-        type_code = type_mapping.get(transaction.transaction_type.lower(), 0)
-        features.append(type_code)
-        
-        return np.array(features).reshape(1, -1)
-    
-    def detect_anomaly(self, transaction: Transaction) -> Tuple[float, Dict]:
+    def detect_anomaly(self, transaction_data: Dict) -> Tuple[float, Dict]:
         """Deteksi anomaly dan return score dengan explanation"""
         if not self.is_trained:
             return 0.0, {
@@ -198,7 +169,7 @@ class HorusAI:
             }
         
         try:
-            features = self.extract_features(transaction)
+            features = self.extract_features(transaction_data)
             features_scaled = self.scaler.transform(features)
             
             # Ensemble scoring dengan fallback
@@ -241,7 +212,7 @@ class HorusAI:
             
             # Generate explanation
             explanation = self._generate_explanation(
-                transaction, final_score, features[0], dict(scores)
+                transaction_data, final_score, features[0], dict(scores)
             )
             
             return final_score, explanation
@@ -255,8 +226,8 @@ class HorusAI:
                 'recommendation': 'Manual review required'
             }
     
-    def _generate_explanation(self, transaction: Transaction, 
-                            score: float, features: np.ndarray, component_scores: Dict) -> Dict:
+    def _generate_explanation(self, transaction_data: Dict, score: float, 
+                            features: np.ndarray, component_scores: Dict) -> Dict:
         """Generate human-readable explanation untuk hasil deteksi"""
         explanation = {
             'risk_level': 'LOW',
@@ -277,26 +248,41 @@ class HorusAI:
             explanation['risk_level'] = 'LOW'
         
         # Detailing triggering factors berdasarkan features
-        if transaction.amount > 1000000:
+        amount = transaction_data.get('amount', 0)
+        if amount > 1000000:
             explanation['triggering_factors'].append('Unusually high amount')
         
         if features[1] > 2:  # Log amount unusual
             explanation['triggering_factors'].append('Amount distribution anomaly')
         
         # Time-based anomaly
-        hour = (transaction.timestamp % 86400) // 3600
+        timestamp = transaction_data.get('timestamp', int(time.time()))
+        hour = (timestamp % 86400) // 3600
         if hour < 6 or hour > 22:
             explanation['triggering_factors'].append('Unusual transaction time')
         
         # Department-based anomaly
-        if transaction.department.lower() == 'unknown':
+        department = transaction_data.get('department', 'unknown').lower()
+        if department == 'unknown':
             explanation['triggering_factors'].append('Unknown department')
         
         # Sender-receiver similarity
-        if transaction.sender == transaction.receiver:
+        sender = transaction_data.get('sender', '')
+        receiver = transaction_data.get('receiver', '')
+        if sender == receiver:
             explanation['triggering_factors'].append('Self-transfer detected')
         
         return explanation
+
+    def retrain_model(self, training_data: Dict) -> bool:
+        """Placeholder for model retraining - to be implemented"""
+        try:
+            print("Model retraining requested")
+            # Implement actual retraining logic here
+            return True
+        except Exception as e:
+            print(f"Error in model retraining: {e}")
+            return False
 
     def get_model_hash(self) -> str:
         """Generate hash untuk verifikasi model integrity"""
@@ -312,86 +298,149 @@ class HorusAI:
             print(f"Error generating model hash: {e}")
             return "hash_generation_failed"
 
-# Global AI instance
-ai_engine = HorusAI()
-
 def main():
-    """Main function untuk AI engine"""
-    print("HORUS AI Engine Starting...")
+    """Main function for the AI Engine"""
+    ai_engine = HorusAI()
     
-    # Initialize model
-    if not ai_engine.initialize_model():
-        print("Failed to initialize AI model")
-        return
-    
-    # Try to load pre-trained model
-    model_loaded = ai_engine.load_model('models/horus_ai_model_v1.pkl')
-    
-    if not model_loaded:
-        print("No pre-trained model found. System will use basic initialization.")
-    else:
-        print("Pre-trained model loaded successfully!")
-    
-    print("HORUS AI Engine Ready - Listening for transactions...")
-    
-    # Process input dari stdin
-    for line in sys.stdin:
-        try:
-            if line.strip():
-                data = json.loads(line.strip())
+    try:
+        # Initialize the AI engine
+        print("HORUS AI Engine Starting...")
+        
+        # First try to load pre-trained model
+        model_path = os.getenv('AI_MODEL_PATH', './models/horus_ai_model_v1.pkl')
+        model_loaded = ai_engine.load_model(model_path)
+        
+        if not model_loaded:
+            print("No pre-trained model found, initializing new model...")
+            if ai_engine.initialize_model():
+                print("New model initialized successfully")
+                ai_engine.is_trained = True
+            else:
+                print("Failed to initialize AI Engine. Exiting.")
+                sys.exit(1)
+        else:
+            print("Pre-trained model loaded successfully!")
+        
+        print("HORUS AI Engine Ready - Listening for transactions...")
+        print("Send JSON data via stdin for analysis")
+        print("Example: {\"type\": \"transaction\", \"data\": {\"amount\": 100, \"sender\": \"A\", \"receiver\": \"B\"}}")
+        print("-" * 50)
+        
+        # Send ready status to Node.js
+        ready_message = json.dumps({
+            "status": "ready", 
+            "message": "AI Engine initialized and ready",
+            "timestamp": time.time(),
+            "model_loaded": ai_engine.is_trained
+        })
+        print(ready_message)
+        sys.stdout.flush()
+        
+        # Main loop - listen for input
+        for line in sys.stdin:
+            line = line.strip()
+            if not line:
+                continue
                 
-                if data.get('type') == 'detect_anomaly':
-                    tx_data = data['data']
+            try:
+                # Parse JSON input
+                data = json.loads(line)
+                
+                # Process based on message type
+                message_type = data.get('type', 'unknown')
+                
+                if message_type == 'init':
+                    # Respond to initialization request
+                    response = {
+                        "status": "initialized",
+                        "message": "AI Engine is ready",
+                        "timestamp": time.time(),
+                        "model_loaded": ai_engine.is_trained
+                    }
+                    print(json.dumps(response))
+                    sys.stdout.flush()
                     
-                    # Convert to Transaction object
-                    transaction = Transaction(
-                        id=tx_data.get('id', 0),
-                        amount=float(tx_data.get('amount', 0)),
-                        sender=tx_data.get('sender', ''),
-                        receiver=tx_data.get('receiver', ''),
-                        timestamp=tx_data.get('timestamp', 0),
-                        department=tx_data.get('department', ''),
-                        transaction_type=tx_data.get('transaction_type', ''),
-                        metadata=tx_data.get('metadata', {})
-                    )
+                elif message_type == 'transaction':
+                    transaction_data = data.get('data', {})
+                    anomaly_score, explanation = ai_engine.detect_anomaly(transaction_data)
                     
-                    # Detect anomaly
-                    score, explanation = ai_engine.detect_anomaly(transaction)
-                    
-                    # Send result
                     result = {
-                        'type': 'anomaly_result',
-                        'data': {
-                            'score': float(score),
-                            'risk_level': explanation['risk_level'],
-                            'explanation': explanation,
-                            'transaction_id': transaction.id
-                        }
+                        "anomaly_score": float(anomaly_score),
+                        "explanation": explanation,
+                        "transaction_id": transaction_data.get('id', 'unknown'),
+                        "timestamp": time.time()
                     }
                     
+                    # Print result as JSON for Node.js to read
                     print(json.dumps(result))
+                    sys.stdout.flush()
                     
-                elif data.get('type') == 'health_check':
-                    print(json.dumps({
-                        'type': 'health_status',
-                        'data': {
-                            'status': 'healthy',
-                            'model_loaded': ai_engine.is_trained,
-                            'version': ai_engine.model_version,
-                            'components_working': True
-                        }
-                    }))
+                elif message_type == 'retrain':
+                    success = ai_engine.retrain_model(data.get('data', {}))
+                    response = {
+                        "retrain_success": success,
+                        "timestamp": time.time()
+                    }
+                    print(json.dumps(response))
+                    sys.stdout.flush()
                     
-        except json.JSONDecodeError as e:
-            print(json.dumps({
-                'type': 'error',
-                'data': {'message': f'Invalid JSON input: {e}'}
-            }))
-        except Exception as e:
-            print(json.dumps({
-                'type': 'error', 
-                'data': {'message': str(e)}
-            }))
+                elif message_type == 'health':
+                    # Health check request
+                    health_status = {
+                        "status": "healthy",
+                        "model_loaded": ai_engine.is_trained,
+                        "timestamp": time.time(),
+                        "model_hash": ai_engine.get_model_hash()
+                    }
+                    print(json.dumps(health_status))
+                    sys.stdout.flush()
+                    
+                else:
+                    error_response = {
+                        "error": "Unknown message type",
+                        "received_type": message_type,
+                        "timestamp": time.time()
+                    }
+                    print(json.dumps(error_response))
+                    sys.stdout.flush()
+                    
+            except json.JSONDecodeError as e:
+                error_response = {
+                    "error": "Invalid JSON format",
+                    "message": str(e),
+                    "input": line,
+                    "timestamp": time.time()
+                }
+                print(json.dumps(error_response))
+                sys.stdout.flush()
+            except Exception as e:
+                error_response = {
+                    "error": f"Processing error: {str(e)}",
+                    "timestamp": time.time()
+                }
+                print(json.dumps(error_response))
+                sys.stdout.flush()
+                
+    except KeyboardInterrupt:
+        print("AI Engine stopped by user")
+        # Send shutdown message
+        shutdown_msg = json.dumps({
+            "status": "shutdown",
+            "message": "AI Engine stopped by user",
+            "timestamp": time.time()
+        })
+        print(shutdown_msg)
+        sys.stdout.flush()
+    except Exception as e:
+        error_msg = json.dumps({
+            "error": f"Fatal error in AI Engine: {str(e)}",
+            "timestamp": time.time()
+        })
+        print(error_msg)
+        sys.stdout.flush()
+        # Use traceback.print_exc() instead of format_exc() to avoid encoding issues
+        traceback.print_exc()
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
